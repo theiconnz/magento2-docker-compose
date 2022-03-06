@@ -1,0 +1,100 @@
+version: '3'
+
+services:
+  web:
+    build:
+      context: docker/apache
+      args:
+        PROJECT_DOMAIN: ${PROJECT_DOMAIN}
+        PROJECT_ROOT: ${PROJECT_ROOT}
+    depends_on:
+      - php
+      - mysql
+    ports:
+      - ${PORT_NGINX}:80
+    volumes:
+      - ${PROJECT_PATH}:/var/www/project:cached
+      - ${TEMP_LOG_DIR}:/var/www/tmp
+    links:
+      - php
+    networks:
+      - magento2
+
+
+  php:
+    build:
+      context: docker/php
+      args:
+        USER_ID: ${USER_ID}
+        PHP_TIMEZONE: ${PHP_TIMEZONE}
+    links:
+      - mysql
+    volumes:
+      - ${PROJECT_PATH}:/var/www/project
+      - ./var/data/php/workspace:/var/www/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      HISTFILE: /var/www/workspace/.bash_history
+      PROMPT_COMMAND: history -a
+      XDEBUG_CONFIG: remote_host=host.docker.internal
+    depends_on:
+      - mysql
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - magento2
+
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - '${PORT_PHPMYADMIN}:80'
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+    networks:
+      - magento2
+
+  es01:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+      container_name: es01
+      environment:
+        - node.name=es01
+        - cluster.name=es-docker-cluster
+        - cluster.initial_master_nodes=es01,es02,es03
+        - bootstrap.memory_lock=true
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      ulimits:
+        memlock:
+          soft: -1
+          hard: -1
+      volumes:
+        - ./var/elastic:/usr/share/elasticsearch/data
+      ports:
+        - 9200:9200
+      networks:
+        - magento2
+
+  mysql:
+        image: ${MYSQL_IMAGE}
+        container_name: mysql-maria-103
+        restart: always
+        command: --max_allowed_packet=75005856
+        environment:
+          - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+          - MYSQL_DATABASE=${MYSQL_DATABASE}
+        volumes:
+          - ${PROJECT_SQL_DB}:/var/lib/mysql
+          - ${PROJECT_SQL_DB}:/docker-entrypoint-initdb.d
+        ports:
+          - '${PORT_MYSQL}:3306'
+        networks:
+          - magento2
+
+networks:
+  magento2:
+    external:
+      name: m2
