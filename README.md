@@ -10,3 +10,8 @@ sudo sysctl -w vm.max_map_count=262144
 
 
 
+
+
+### Infrastructure model
+
+![Infrastructure model](.infragenie/infrastructure_model.png)
