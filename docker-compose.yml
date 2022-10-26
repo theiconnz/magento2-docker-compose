@@ -98,3 +98,9 @@ networks:
   magento2:
     external:
       name: m2
+      
+# Change to below network service if it returns msg="network magento2: network.external.name is deprecated in favor of network.name"
+#networks:
+#  default:
+#    name: magento2
+#    external: true
